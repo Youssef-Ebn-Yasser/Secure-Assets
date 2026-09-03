@@ -187,6 +187,29 @@ public class VideoWorkerService : BackgroundService
             }
             else
             {
+                var durations = new Dictionary<string, double>();
+                if (File.Exists(outputPlaylist))
+                {
+                    var lines = await File.ReadAllLinesAsync(outputPlaylist, ct);
+                    double currentDuration = 4.0;
+                    foreach (var line in lines)
+                    {
+                        if (line.StartsWith("#EXTINF:"))
+                        {
+                            var parts = line.Substring(8).Split(',');
+                            if (parts.Length > 0 && double.TryParse(parts[0], System.Globalization.NumberStyles.Any, System.Globalization.CultureInfo.InvariantCulture, out double d))
+                            {
+                                currentDuration = d;
+                            }
+                        }
+                        else if (!line.StartsWith("#") && line.EndsWith(".ts"))
+                        {
+                            var segName = Path.GetFileName(line);
+                            durations[segName] = currentDuration;
+                        }
+                    }
+                }
+
                 foreach (var segFile in segFiles)
                 {
                     string randomSegName = $"{Guid.NewGuid():N}.ts";
@@ -195,7 +218,9 @@ public class VideoWorkerService : BackgroundService
                     {
                         await _storage.PutObjectAsync(ProcessedBucket, $"video/{msg.FileId:N}/{randomSegName}", fs, fi.Length, "video/MP2T", ct);
                     }
-                    segments.Add(new { SegmentName = randomSegName, Duration = 4.0 });
+                    var origName = Path.GetFileName(segFile);
+                    var segDuration = durations.ContainsKey(origName) ? durations[origName] : 4.0;
+                    segments.Add(new { SegmentName = randomSegName, Duration = segDuration });
                 }
             }
 

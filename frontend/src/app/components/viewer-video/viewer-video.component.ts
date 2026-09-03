@@ -17,9 +17,6 @@ import { MediaService, MediaFile } from '../../services/media.service';
         </a>
         <div class="file-title-section">
           <h2>{{ file?.originalName || 'Secure Video Stream' }}</h2>
-          <span class="protection-badge">
-            <i class="fa-solid fa-shield-halved"></i> AES-128 HLS Encrypted Chunks
-          </span>
         </div>
       </div>
 
@@ -37,21 +34,6 @@ import { MediaService, MediaFile } from '../../services/media.service';
           <!-- Security Watermark Overlay -->
           <div class="watermark-overlay">
             <span>SECURE VAULT • {{ auth.currentUser()?.email }}</span>
-          </div>
-        </div>
-
-        <div class="player-info-footer">
-          <div class="info-pill">
-            <i class="fa-solid fa-microchip text-brand"></i>
-            <span>Memory MediaSource Playback</span>
-          </div>
-          <div class="info-pill">
-            <i class="fa-solid fa-key text-brand"></i>
-            <span>Signed Tokenized Key Exchange</span>
-          </div>
-          <div class="info-pill">
-            <i class="fa-solid fa-ban text-brand"></i>
-            <span>Direct Downloads Blocked</span>
           </div>
         </div>
       </div>
