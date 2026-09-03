@@ -1,37 +1,58 @@
-name: Deploy
+name: Deploy to EC2
 
 on:
   workflow_run:
     workflows: ["Build & Push Images"]
     types: [completed]
+  workflow_dispatch:
 
 jobs:
-  deploy-staging:
-    if: ${{ github.event.workflow_run.conclusion == 'success' }}
-    runs-on: ubuntu-latest
-    environment: staging
-    steps:
-      - uses: appleboy/ssh-action@v1
-        with:
-          host: ${{ secrets.STAGING_HOST }}
-          username: ${{ secrets.STAGING_USER }}
-          key: ${{ secrets.STAGING_SSH_KEY }}
-          script: |
-            cd /opt/secure-media-vault
-            docker compose pull
-            docker compose up -d --remove-orphans
-
-  deploy-production:
-    needs: deploy-staging
+  deploy:
+    if: ${{ github.event_name == 'workflow_dispatch' || github.event.workflow_run.conclusion == 'success' }}
     runs-on: ubuntu-latest
     environment: production
+
     steps:
-      - uses: appleboy/ssh-action@v1
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Copy docker-compose.yml to EC2
+        uses: appleboy/scp-action@v0.1.7
+        with:
+          host: ${{ secrets.PROD_HOST }}
+          username: ${{ secrets.PROD_USER }}
+          key: ${{ secrets.PROD_SSH_KEY }}
+          source: "docker-compose.yml"
+          target: "/opt/secure-media-vault"
+
+      - name: Deploy on EC2
+        uses: appleboy/ssh-action@v1
         with:
           host: ${{ secrets.PROD_HOST }}
           username: ${{ secrets.PROD_USER }}
           key: ${{ secrets.PROD_SSH_KEY }}
           script: |
+            set -e
             cd /opt/secure-media-vault
+
+            # Verify .env file exists
+            if [ ! -f .env ]; then
+              echo "ERROR: .env file not found at /opt/secure-media-vault/.env"
+              echo "Create it from .env.example and configure your secrets."
+              exit 1
+            fi
+
+            # Login to GitHub Container Registry to pull private images
+            echo "${{ secrets.GITHUB_TOKEN }}" | docker login ghcr.io \
+              -u ${{ github.actor }} \
+              --password-stdin
+
+            # Pull latest images and restart containers
             docker compose pull
             docker compose up -d --remove-orphans
+
+            # Clean up old/dangling images to save disk space
+            docker image prune -f
+
+            echo "Deployment completed successfully!"
+            docker compose ps

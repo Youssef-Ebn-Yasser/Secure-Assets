@@ -1,5 +1,6 @@
 services:
   gateway:
+    image: ghcr.io/youssef-ebn-yasser/secure-assets/gateway:latest
     build: ./gateway
     ports:
       - "80:80"
@@ -13,12 +14,14 @@ services:
     restart: unless-stopped
 
   frontend:
+    image: ghcr.io/youssef-ebn-yasser/secure-assets/frontend:latest
     build: ./frontend
     networks:
       - internal
     restart: unless-stopped
 
   api:
+    image: ghcr.io/youssef-ebn-yasser/secure-assets/api:latest
     build:
       context: .
       dockerfile: src/Api/Dockerfile
@@ -44,6 +47,7 @@ services:
     restart: unless-stopped
 
   ffmpeg-worker:
+    image: ghcr.io/youssef-ebn-yasser/secure-assets/ffmpeg-worker:latest
     build:
       context: .
       dockerfile: src/Workers/FfmpegWorker/Dockerfile
@@ -64,6 +68,7 @@ services:
     restart: unless-stopped
 
   image-worker:
+    image: ghcr.io/youssef-ebn-yasser/secure-assets/image-worker:latest
     build:
       context: .
       dockerfile: src/Workers/ImageWorker/Dockerfile
@@ -84,6 +89,7 @@ services:
     restart: unless-stopped
 
   pdf-worker:
+    image: ghcr.io/youssef-ebn-yasser/secure-assets/pdf-worker:latest
     build:
       context: .
       dockerfile: src/Workers/PdfWorker/Dockerfile
