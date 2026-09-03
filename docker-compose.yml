@@ -37,6 +37,8 @@ services:
       - Minio__UseSSL=false
       - Redis__Host=redis:6379
       - Jwt__Secret=${JWT_SECRET:-vault-super-secure-jwt-signing-key-production-32bytes-secret!}
+      - Seed__AdminEmail=${ADMIN_EMAIL:-admin@vault.local}
+      - Seed__AdminPassword=${ADMIN_PASSWORD:-Admin@Vault123!}
     depends_on:
       - postgres
       - redis

@@ -146,28 +146,85 @@ builder.Services.AddSwaggerGen(c =>
 
 var app = builder.Build();
 
-// Ensure DB is migrated / created
+// Ensure DB is migrated / created — retry until Postgres is ready
 using (var scope = app.Services.CreateScope())
 {
     var db = scope.ServiceProvider.GetRequiredService<VaultDbContext>();
-    try
+    var config = scope.ServiceProvider.GetRequiredService<IConfiguration>();
+
+    const int maxRetries = 10;
+    for (int attempt = 1; attempt <= maxRetries; attempt++)
     {
-        db.Database.EnsureCreated();
-    }
-    catch (Exception ex)
-    {
-        Console.WriteLine($"DB initialization notice: {ex.Message}");
+        try
+        {
+            db.Database.EnsureCreated();
+            Console.WriteLine("DB initialized successfully.");
+            break;
+        }
+        catch (Exception ex) when (attempt < maxRetries)
+        {
+            Console.WriteLine($"DB not ready (attempt {attempt}/{maxRetries}): {ex.Message}. Retrying in 3s...");
+            Thread.Sleep(3000);
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"DB initialization failed after {maxRetries} attempts: {ex.Message}");
+        }
     }
 
-    var storage = scope.ServiceProvider.GetRequiredService<IStorageService>();
+    // ── Admin Seed ────────────────────────────────────────────────────────────
+    // Reads from env vars ADMIN_EMAIL / ADMIN_PASSWORD (with safe defaults).
+    // Skips if an admin already exists — fully idempotent on every restart.
     try
     {
-        storage.EnsureBucketExistsAsync("vault-raw").GetAwaiter().GetResult();
-        storage.EnsureBucketExistsAsync("vault-processed").GetAwaiter().GetResult();
+        string adminEmail    = config["Seed:AdminEmail"]    ?? "admin@vault.local";
+        string adminPassword = config["Seed:AdminPassword"] ?? "Admin@Vault123!";
+
+        bool adminExists = db.Users.Any(u => u.Role == UserRole.Admin);
+        if (!adminExists)
+        {
+            var admin = new User
+            {
+                Id           = Guid.NewGuid(),
+                Email        = adminEmail.Trim().ToLowerInvariant(),
+                PasswordHash = BCrypt.Net.BCrypt.HashPassword(adminPassword),
+                Role         = UserRole.Admin,
+                CreatedAt    = DateTime.UtcNow
+            };
+            db.Users.Add(admin);
+            db.SaveChanges();
+            Console.WriteLine($"Admin user seeded: {admin.Email}");
+        }
+        else
+        {
+            Console.WriteLine("Admin user already exists — skipping seed.");
+        }
     }
     catch (Exception ex)
     {
-        Console.WriteLine($"MinIO initialization notice: {ex.Message}");
+        Console.WriteLine($"Admin seed warning: {ex.Message}");
+    }
+    // ─────────────────────────────────────────────────────────────────────────
+
+    var storage = scope.ServiceProvider.GetRequiredService<IStorageService>();
+    for (int attempt = 1; attempt <= maxRetries; attempt++)
+    {
+        try
+        {
+            storage.EnsureBucketExistsAsync("vault-raw").GetAwaiter().GetResult();
+            storage.EnsureBucketExistsAsync("vault-processed").GetAwaiter().GetResult();
+            Console.WriteLine("MinIO buckets ensured.");
+            break;
+        }
+        catch (Exception ex) when (attempt < maxRetries)
+        {
+            Console.WriteLine($"MinIO not ready (attempt {attempt}/{maxRetries}): {ex.Message}. Retrying in 3s...");
+            Thread.Sleep(3000);
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"MinIO initialization failed after {maxRetries} attempts: {ex.Message}");
+        }
     }
 }
 
