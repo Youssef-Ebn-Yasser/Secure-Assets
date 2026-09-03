@@ -1,0 +1,48 @@
+# Project Plan / Documentation
+project-plan.md
+docs/project-plan.md
+
+# Environment and Secret Files
+.env
+.env.*
+!.env.example
+*.pem
+*.key
+*.pfx
+
+# .NET Build artifacts
+bin/
+obj/
+*.user
+*.suo
+*.userosscache
+*.sln.docstates
+.vs/
+.vscode/
+.idea/
+
+# Node & Angular
+node_modules/
+dist/
+.angular/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+.npm/
+
+# Logs & Temporary Files
+logs/
+*.log
+scratch/
+temp/
+tmp/
+
+# OS specific files
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# Docker / MinIO / Postgres local volume mounts
+pgdata/
+miniodata/
+redisdata/

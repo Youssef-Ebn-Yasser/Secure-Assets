@@ -1,0 +1,11 @@
+<Solution>
+  <Folder Name="/src/">
+    <Project Path="src/Api/Api.csproj" />
+    <Project Path="src/Shared/Shared.csproj" />
+  </Folder>
+  <Folder Name="/src/Workers/">
+    <Project Path="src/Workers/FfmpegWorker/FfmpegWorker.csproj" />
+    <Project Path="src/Workers/ImageWorker/ImageWorker.csproj" />
+    <Project Path="src/Workers/PdfWorker/PdfWorker.csproj" />
+  </Folder>
+</Solution>

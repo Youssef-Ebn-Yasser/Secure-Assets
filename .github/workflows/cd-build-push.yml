@@ -1,0 +1,38 @@
+name: Build & Push Images
+
+on:
+  push:
+    branches: [main]
+    tags: ['v*.*.*']
+
+jobs:
+  build-push:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
+    strategy:
+      matrix:
+        service:
+          - { name: api,           context: .,        dockerfile: src/Api/Dockerfile }
+          - { name: ffmpeg-worker, context: .,        dockerfile: src/Workers/FfmpegWorker/Dockerfile }
+          - { name: image-worker,  context: .,        dockerfile: src/Workers/ImageWorker/Dockerfile }
+          - { name: pdf-worker,    context: .,        dockerfile: src/Workers/PdfWorker/Dockerfile }
+          - { name: gateway,       context: gateway,  dockerfile: gateway/Dockerfile }
+          - { name: frontend,      context: frontend, dockerfile: frontend/Dockerfile }
+    steps:
+      - uses: actions/checkout@v4
+      - uses: docker/setup-buildx-action@v3
+      - uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+      - uses: docker/build-push-action@v6
+        with:
+          context: ${{ matrix.service.context }}
+          file: ${{ matrix.service.dockerfile }}
+          push: true
+          tags: |
+            ghcr.io/${{ github.repository }}/${{ matrix.service.name }}:${{ github.sha }}
+            ghcr.io/${{ github.repository }}/${{ matrix.service.name }}:latest

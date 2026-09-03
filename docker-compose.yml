@@ -1,0 +1,152 @@
+services:
+  gateway:
+    build: ./gateway
+    ports:
+      - "80:80"
+      - "443:443"
+    depends_on:
+      - api
+      - frontend
+    networks:
+      - public
+      - internal
+    restart: unless-stopped
+
+  frontend:
+    build: ./frontend
+    networks:
+      - internal
+    restart: unless-stopped
+
+  api:
+    build:
+      context: .
+      dockerfile: src/Api/Dockerfile
+    environment:
+      - ConnectionStrings__Postgres=Host=postgres;Port=5432;Database=vault;Username=postgres;Password=${POSTGRES_PASSWORD:-postgres_secure_pass_123}
+      - Rabbit__Host=rabbitmq
+      - Rabbit__Port=5672
+      - Rabbit__User=${RABBITMQ_DEFAULT_USER:-guest}
+      - Rabbit__Pass=${RABBITMQ_DEFAULT_PASS:-guest}
+      - Minio__Endpoint=minio:9000
+      - Minio__AccessKey=${MINIO_ROOT_USER:-minioadmin}
+      - Minio__SecretKey=${MINIO_ROOT_PASSWORD:-minioadmin123}
+      - Minio__UseSSL=false
+      - Redis__Host=redis:6379
+      - Jwt__Secret=${JWT_SECRET:-vault-super-secure-jwt-signing-key-production-32bytes-secret!}
+    depends_on:
+      - postgres
+      - redis
+      - rabbitmq
+      - minio
+    networks:
+      - internal
+    restart: unless-stopped
+
+  ffmpeg-worker:
+    build:
+      context: .
+      dockerfile: src/Workers/FfmpegWorker/Dockerfile
+    environment:
+      - Rabbit__Host=rabbitmq
+      - Rabbit__Port=5672
+      - Rabbit__User=${RABBITMQ_DEFAULT_USER:-guest}
+      - Rabbit__Pass=${RABBITMQ_DEFAULT_PASS:-guest}
+      - Minio__Endpoint=minio:9000
+      - Minio__AccessKey=${MINIO_ROOT_USER:-minioadmin}
+      - Minio__SecretKey=${MINIO_ROOT_PASSWORD:-minioadmin123}
+      - Minio__UseSSL=false
+    depends_on:
+      - rabbitmq
+      - minio
+    networks:
+      - internal
+    restart: unless-stopped
+
+  image-worker:
+    build:
+      context: .
+      dockerfile: src/Workers/ImageWorker/Dockerfile
+    environment:
+      - Rabbit__Host=rabbitmq
+      - Rabbit__Port=5672
+      - Rabbit__User=${RABBITMQ_DEFAULT_USER:-guest}
+      - Rabbit__Pass=${RABBITMQ_DEFAULT_PASS:-guest}
+      - Minio__Endpoint=minio:9000
+      - Minio__AccessKey=${MINIO_ROOT_USER:-minioadmin}
+      - Minio__SecretKey=${MINIO_ROOT_PASSWORD:-minioadmin123}
+      - Minio__UseSSL=false
+    depends_on:
+      - rabbitmq
+      - minio
+    networks:
+      - internal
+    restart: unless-stopped
+
+  pdf-worker:
+    build:
+      context: .
+      dockerfile: src/Workers/PdfWorker/Dockerfile
+    environment:
+      - Rabbit__Host=rabbitmq
+      - Rabbit__Port=5672
+      - Rabbit__User=${RABBITMQ_DEFAULT_USER:-guest}
+      - Rabbit__Pass=${RABBITMQ_DEFAULT_PASS:-guest}
+      - Minio__Endpoint=minio:9000
+      - Minio__AccessKey=${MINIO_ROOT_USER:-minioadmin}
+      - Minio__SecretKey=${MINIO_ROOT_PASSWORD:-minioadmin123}
+      - Minio__UseSSL=false
+    depends_on:
+      - rabbitmq
+      - minio
+    networks:
+      - internal
+    restart: unless-stopped
+
+  postgres:
+    image: postgres:16-alpine
+    environment:
+      - POSTGRES_PASSWORD=${POSTGRES_PASSWORD:-postgres_secure_pass_123}
+      - POSTGRES_DB=vault
+      - POSTGRES_USER=postgres
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    networks:
+      - internal
+    restart: unless-stopped
+
+  redis:
+    image: redis:7-alpine
+    networks:
+      - internal
+    restart: unless-stopped
+
+  rabbitmq:
+    image: rabbitmq:3-management-alpine
+    environment:
+      - RABBITMQ_DEFAULT_USER=${RABBITMQ_DEFAULT_USER:-guest}
+      - RABBITMQ_DEFAULT_PASS=${RABBITMQ_DEFAULT_PASS:-guest}
+    networks:
+      - internal
+    restart: unless-stopped
+
+  minio:
+    image: minio/minio:latest
+    command: server /data --console-address ":9001"
+    environment:
+      - MINIO_ROOT_USER=${MINIO_ROOT_USER:-minioadmin}
+      - MINIO_ROOT_PASSWORD=${MINIO_ROOT_PASSWORD:-minioadmin123}
+    volumes:
+      - miniodata:/data
+    networks:
+      - internal
+    restart: unless-stopped
+
+networks:
+  public:
+  internal:
+    internal: true
+
+volumes:
+  pgdata:
+  miniodata:
