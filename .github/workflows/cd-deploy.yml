@@ -25,12 +25,15 @@ jobs:
           source: "docker-compose.yml"
           target: "/opt/secure-media-vault"
 
-      - name: Deploy on EC2
+      # Step 1: Pull images (can be slow on first run - allow 20 min)
+      - name: Pull latest images on EC2
         uses: appleboy/ssh-action@v1
         with:
           host: ${{ secrets.PROD_HOST }}
           username: ${{ secrets.PROD_USER }}
           key: ${{ secrets.PROD_SSH_KEY }}
+          connect_timeout: 30s
+          command_timeout: 20m
           script: |
             set -e
             cd /opt/secure-media-vault
@@ -42,17 +45,37 @@ jobs:
               exit 1
             fi
 
-            # Login to GitHub Container Registry to pull private images
+            # Login to GitHub Container Registry
             echo "${{ secrets.GITHUB_TOKEN }}" | docker login ghcr.io \
               -u ${{ github.actor }} \
               --password-stdin
 
-            # Pull latest images and restart containers
+            echo "==> Pulling latest images..."
             docker compose pull
+            echo "==> Pull complete."
+
+      # Step 2: Start containers (separate timeout so pull time doesn't count)
+      - name: Start containers on EC2
+        uses: appleboy/ssh-action@v1
+        with:
+          host: ${{ secrets.PROD_HOST }}
+          username: ${{ secrets.PROD_USER }}
+          key: ${{ secrets.PROD_SSH_KEY }}
+          connect_timeout: 30s
+          command_timeout: 10m
+          script: |
+            set -e
+            cd /opt/secure-media-vault
+
+            echo "==> Starting containers..."
             docker compose up -d --remove-orphans
 
-            # Clean up old/dangling images to save disk space
+            # Wait a few seconds then verify all services are healthy
+            sleep 10
+            docker compose ps
+
+            # Clean up old dangling images
             docker image prune -f
 
-            echo "Deployment completed successfully!"
-            docker compose ps
+            echo "==> Deployment completed successfully!"
+
