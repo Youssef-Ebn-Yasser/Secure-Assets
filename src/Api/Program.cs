@@ -8,6 +8,7 @@ using Microsoft.OpenApi.Models;
 using Minio;
 using Shared.Data;
 using Shared.Messaging;
+using Shared.Models;
 using Shared.Security;
 using Shared.Storage;
 using StackExchange.Redis;
